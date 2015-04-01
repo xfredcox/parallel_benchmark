@@ -1,15 +1,18 @@
 import time
 import multiprocessing as mp
 import random
+import os
 
 N = 10 # Blocking tasks to solve
 P = 8 # Max processes
 T = 2 # Max blocker duration (timeout)
 
 def IO(*args, **kwargs):
+    print "IO :: {}".format(os.getpid())
     time.sleep(random.random() * T)
 
 def CPU(*args, **kwargs):
+    print "CPU :: {}".format(os.getpid())
     _ = [x**x for x in range(5500)]
     # Takes about 1s for me
 
@@ -66,13 +69,11 @@ def model_4():
 
     
 def main():    
-#    print model_1()
+    print model_1()
     print model_2()
 #    print model_3()
     
     return
-
-
 
 if __name__ == "__main__":
     main()
