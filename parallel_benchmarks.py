@@ -16,8 +16,8 @@ def CPU(*args, **kwargs):
     _ = [x**x for x in range(5500)]
     # Takes about 1s for me
 
-RATIO = 5 # Ratio of IOs per CPU calls (must be int)
-CPUs = 3
+RATIO = 1 # Ratio of IOs per CPU calls (must be int)
+CPUs = 5
 
 _IOs = [IO for _ in range(RATIO * CPUs)]
 TASKS = random.sample([CPU for _ in range(CPUs)] + _IOs, CPUs + RATIO * CPUs)
@@ -40,7 +40,7 @@ def model_1():
     txt += "  tasks: {}\n".format(n)
     txt += "  per task: {}\n".format(total_time / n)
     
-    return txt 
+    return txt, total_time / n
 
 def model_2():
     # Multiprocessed Benchmark
@@ -54,8 +54,8 @@ def model_2():
     txt += "Clock Time: {}\n".format(total_time)
     txt += "  tasks: {}\n".format(n)
     txt += "  per task: {}\n".format(total_time / n)
-    
-    return txt     
+
+    return txt, total_time / n    
 
 def model_3():
     # Asyncronous Benchmark
@@ -69,8 +69,14 @@ def model_4():
 
     
 def main():    
-    print model_1()
-    print model_2()
+    txt1, t1 =  model_1()
+    txt2, t2 =  model_2()
+
+    print txt1
+    print txt2
+
+    print
+    print "1 : {}".format(round(t2/t1, 4))
 #    print model_3()
     
     return
