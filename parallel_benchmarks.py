@@ -2,14 +2,16 @@ import time
 import multiprocessing as mp
 import random
 import os
+import threading
+import Queue
 
-N = 10 # Blocking tasks to solve
-P = 8 # Max processes
-T = 2 # Max blocker duration (timeout)
+MAX_PROCESSES = 8 
+MAX_THREADS = 8
+TIMEOUT = 2
 
 def IO(*args, **kwargs):
     print "IO :: {}".format(os.getpid())
-    time.sleep(random.random() * T)
+    time.sleep(random.random() * TIMEOUT)
 
 def CPU(*args, **kwargs):
     print "CPU :: {}".format(os.getpid())
@@ -46,7 +48,7 @@ def model_2():
     # Multiprocessed Benchmark
     ## N Processes w/ Synchronous Calls
     start_time = time.time()
-    pool = mp.Pool(P)
+    pool = mp.Pool(MAX_PROCESSES)
     n = len(pool.map(executer, [x.__name__ for x in TASKS]))
     total_time = time.time() - start_time
 
@@ -60,7 +62,42 @@ def model_2():
 def model_3():
     # Asyncronous Benchmark
     ## Single Process w/ Async Calls
-    pass
+    q = Queue.Queue()
+    for t in TASKS:
+        q.put(t)
+
+    def target_func():
+        task = q.get()
+        while task:
+            task()
+            try:
+                task = q.get()
+                print task
+            except Queue.Empty:
+                task = None
+
+    start_time = time.time()
+
+    threads = []
+
+    print " calling" 
+    for _ in range(MAX_THREADS):
+        thread = threading.Thread(target=target_func)
+        thread.start()
+        threads.append(thread)
+    print " called" 
+#    for t in threads:
+#        t.join()
+    print " joined" 
+    n = len(TASKS)
+    total_time = time.time() - start_time
+
+    txt = "===== model_3 =====\n"
+    txt += "Clock Time: {}\n".format(total_time)
+    txt += "  tasks: {}\n".format(n)
+    txt += "  per task: {}\n".format(total_time / n)
+
+    return txt, total_time / n    
     
 def model_4():
     # Multiprocessed Asyncronous
@@ -82,4 +119,4 @@ def main():
     return
 
 if __name__ == "__main__":
-    main()
+    print model_3()
