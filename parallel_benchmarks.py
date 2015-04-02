@@ -33,6 +33,8 @@ def executer(name):
 def model_1():
     # Sequential Benchmark
     ## Single Process w/ Synchronous Calls
+
+    print "===== Running Model I ====="
     start_time = time.time()
     n = len([x() for x in TASKS])
     total_time = time.time() - start_time
@@ -47,6 +49,8 @@ def model_1():
 def model_2():
     # Multiprocessed Benchmark
     ## N Processes w/ Synchronous Calls
+
+    print "===== Running Model II ====="    
     start_time = time.time()
     pool = mp.Pool(MAX_PROCESSES)
     n = len(pool.map(executer, [x.__name__ for x in TASKS]))
@@ -62,6 +66,10 @@ def model_2():
 def model_3():
     # Asyncronous Benchmark
     ## Single Process w/ Async Calls
+
+    print "===== Running Model III ====="                
+    start_time = time.time()
+    
     q = Queue.Queue()
     for t in TASKS:
         q.put(t)
@@ -71,24 +79,18 @@ def model_3():
         while task:
             task()
             try:
-                task = q.get()
-                print task
+                task = q.get_nowait()
             except Queue.Empty:
                 task = None
 
-    start_time = time.time()
-
     threads = []
 
-    print " calling" 
     for _ in range(MAX_THREADS):
         thread = threading.Thread(target=target_func)
-        thread.start()
         threads.append(thread)
-    print " called" 
-#    for t in threads:
-#        t.join()
-    print " joined" 
+        thread.setDaemon(True)
+        thread.start()
+
     n = len(TASKS)
     total_time = time.time() - start_time
 
@@ -108,15 +110,16 @@ def model_4():
 def main():    
     txt1, t1 =  model_1()
     txt2, t2 =  model_2()
+    txt3, t3 =  model_3()
 
     print txt1
     print txt2
+    print txt3
 
     print
-    print "1 : {}".format(round(t2/t1, 4))
-#    print model_3()
+    print "1 : {} : {}".format(round(t2/t1, 4), round(t3/t1, 4))
     
     return
 
 if __name__ == "__main__":
-    print model_3()
+    main()
