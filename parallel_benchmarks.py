@@ -10,11 +10,11 @@ MAX_THREADS = 8
 TIMEOUT = 2
 
 def IO(*args, **kwargs):
-    print "IO :: {}".format(os.getpid())
+    print "IO :: {} :: {}".format(os.getpid(), threading.currentThread().name)
     time.sleep(random.random() * TIMEOUT)
 
 def CPU(*args, **kwargs):
-    print "CPU :: {}".format(os.getpid())
+    print "CPU :: {} :: {}".format(os.getpid(), threading.currentThread().name)
     _ = [x**x for x in range(5500)]
     # Takes about 1s for me
 
@@ -85,8 +85,8 @@ def model_3():
 
     threads = []
 
-    for _ in range(MAX_THREADS):
-        thread = threading.Thread(target=target_func)
+    for i in range(MAX_THREADS):
+        thread = threading.Thread(target=target_func, name=str(i))
         threads.append(thread)
         thread.setDaemon(True)
         thread.start()
