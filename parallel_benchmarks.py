@@ -3,7 +3,6 @@ import multiprocessing as mp
 import random
 import os
 import threading
-import Queue
 import logging
 import unittest
 
@@ -32,7 +31,7 @@ CPUs = 1
 
 _IOs = [IO_BOUND for _ in range(RATIO * CPUs)]
 TASKS = random.sample([CPU_BOUND for _ in range(CPUs)] + _IOs, CPUs + RATIO * CPUs)
-OUTPUT = Queue.Queue() # Empty container to run tests that the functions actually got called.
+OUTPUT = mp.Queue() # Empty container to run tests that the functions actually got called.
 
 def executer(name):
     if name == 'CPU_BOUND':
@@ -53,7 +52,7 @@ def threaded_executer(*args, **kwargs):
             executer(task)
             try:
                 task = q.get_nowait()
-            except Queue.Empty:
+            except mp.queues.Empty:
                 task = None
     
     threads = []
@@ -65,7 +64,7 @@ def threaded_executer(*args, **kwargs):
         thread.setDaemon(True)
         thread.start()
 
-q = Queue.Queue()
+q = mp.Queue()
 for t in [x.__name__ for x in TASKS]:
     q.put(t)        
 
@@ -109,7 +108,7 @@ def model_3():
     log.debug("===== Running Model III =====")
     start_time = time.time()
     
-    q = Queue.Queue()
+    q = mp.Queue()
     for t in TASKS:
         q.put(t)
 
@@ -122,7 +121,7 @@ def model_3():
             task()
             try:
                 task = q.get_nowait()
-            except Queue.Empty:
+            except mp.queues.Empty:
                 task = None
 
     threads = []
@@ -206,7 +205,7 @@ def test_model(model):
 ####### START OF QUEUE METHODS
     
 def test_deQueue():
-    q = Queue.Queue()
+    q = mp.Queue()
     q.put(1)
     q.put(2)
     q.put(3)
@@ -218,7 +217,7 @@ def test_deQueue():
     logging.info("test_deQueue Passed")
 
 def test_clearQueue():
-    q = Queue.Queue()
+    q = mp.Queue()
     q.put(1)
     q.put(2)
     q.put(3)
@@ -227,7 +226,7 @@ def test_clearQueue():
     q = clearQueue(q)
     assert q.qsize() == 0
 
-    q = Queue.Queue()
+    q = mp.Queue()
     q.put(1)
     q.put(2)
     q.put(3)
@@ -237,6 +236,24 @@ def test_clearQueue():
     assert q.qsize() == 0    
 
     logging.info("test_clearQueue Passed")    
+
+    
+def temp_func(i):
+    test_q.put(i)
+
+test_q = mp.Queue()
+    
+def test_queue():
+
+    pool = mp.Pool(2)
+
+    clearQueue(test_q)
+    
+    pool.map(temp_func, range(3))
+    
+    l = deQueue(test_q)
+
+    assert set(l) == set([0,1,2])
     
 def deQueue(q):
     output = []
@@ -244,86 +261,17 @@ def deQueue(q):
         try:
             el = q.get_nowait()
             output.append(el)
-        except Queue.Empty:
+        except mp.queues.Empty:
             return output
 
 def clearQueue(q):
     while True:
         try:
             el = q.get_nowait()
-        except Queue.Empty:
+        except mp.queues.Empty:
             return q
 
 ####### END OF QUEUE METHODS
-
-####### START OF FILE METHODS
-
-FILE_NAME = 'test_exec.txt'
-
-def clear_file():
-    with open(FILE_NAME, 'w') as f:
-        f.write('')
-
-def write_line(txt):
-    with open(FILE_NAME, 'r+') as f:
-        f.write(txt)
-
-def deFile():
-    with open(FILE_NAME, 'r') as f:
-        return f.read().split("\n")
-
-def test_clear_file():
-    f = open(FILE_NAME, 'w')
-    f.write('TEST')
-    f.close()
-
-    clear_file()
-
-    f = open(FILE_NAME, 'r')
-    txt = f.read()
-
-    assert txt == ''
-
-    logging.info("test_clear_file Passed")        
-
-def test_write_line():
-    clear_file()
-
-    write_line('WRITE TEST')
-    
-    f = open(FILE_NAME, 'r')
-    txt = f.read()
-
-    assert txt == 'WRITE TEST'
-
-    clear_file()
-
-    write_line('TEST')
-    write_line('WRITE\n')
-    
-    f = open(FILE_NAME, 'r')
-    txt = f.read()
-
-    print txt
-    assert txt == 'WRITE\nTEST'    
-
-    logging.info("test_write_line Passed")
-
-def test_deFile():
-    clear_file()
-
-    write_line('3\n')
-    write_line('2\n')
-    write_line('1\n')        
-    
-    l = deFile()
-
-    print l
-    assert l == [1,2,3]
-
-    logging.info("test_deFile Passed")            
-    
-####### END OF FILE METHODS
 
 ####### START OF ANALYSIS RUNNER
 
@@ -344,6 +292,8 @@ pass
 
 if __name__ == "__main__":
     #main()
+    test_model(model_1)
     test_model(model_2)
-
+    test_model(model_3)    
+    
 
