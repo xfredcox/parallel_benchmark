@@ -9,9 +9,15 @@ import unittest
 log = logging
 log.basicConfig(level="DEBUG")
 
-MAX_PROCESSES = 10 
-MAX_THREADS = 8
+MAX_PROCESSES = 1 
+MAX_THREADS = 3
 TIMEOUT = 2
+
+def execute_by_name(name):
+    if name == 'CPU_BOUND':
+        return CPU_BOUND()
+    elif name == 'IO_BOUND':
+        return IO_BOUND()
 
 def IO_BOUND(*args, **kwargs):
     log.debug("IO :: {} :: {}".format(os.getpid(), threading.currentThread().name))
@@ -27,52 +33,11 @@ def CPU_BOUND(*args, **kwargs):
     OUTPUT.put(["CPU_BOUND", os.getpid(), threading.currentThread().name])
 
 RATIO = 4 # Ratio of IOs per CPU calls (must be int)
-CPUs = 1
+CPUs = 2
 
 _IOs = [IO_BOUND for _ in range(RATIO * CPUs)]
 TASKS = random.sample([CPU_BOUND for _ in range(CPUs)] + _IOs, CPUs + RATIO * CPUs)
 OUTPUT = mp.Queue() # Empty container to run tests that the functions actually got called.
-
-def executer(name):
-    if name == 'CPU_BOUND':
-        return CPU_BOUND()
-    elif name == 'IO_BOUND':
-        return IO_BOUND()
-
-def threaded_executer(*args, **kwargs):
-
-    log.debug("STARTING UP PROCESS {}".format(os.getpid()))
-    
-    def target_func():
-        try:
-            task = q.get_nowait()
-            log.debug("Calling Task :: {} :: {} :: {}".format(os.getpid(), threading.currentThread().name, task))
-        except Exception as e:
-            log.debug("Exit BEFORE Thread Called :: {} :: {} :: {}".format(os.getpid(), threading.currentThread().name, type(e)))
-            return
-        while task:
-            executer(task)
-            try:
-                task = q.get_nowait()
-            except mp.queues.Empty:
-                log.debug("Exit AFTER Thread Called :: {} :: {}".format(os.getpid(), threading.currentThread().name, q.qsize))           
-                task = None                
-     
-    threads = []
-
-    for i in range(MAX_THREADS):
-        thread = threading.Thread(target=target_func, name=str(i))
-        threads.append(thread)
-        thread.setDaemon(True)
-        thread.start()
-
-    [t.join() for t in threads]
-
-    log.debug("SHUTTING DOWN PROCESS {}".format(os.getpid()))    
-        
-q = mp.Queue()
-for t in [x.__name__ for x in TASKS]:
-    q.put(t)        
 
 def model_1():
     # Sequential Benchmark
@@ -97,7 +62,7 @@ def model_2():
     log.debug("===== Running Model II =====")
     start_time = time.time()
     pool = mp.Pool(MAX_PROCESSES)
-    n = len(pool.map(executer, [x.__name__ for x in TASKS]))
+    n = len(pool.map(execute_by_name, [x.__name__ for x in TASKS]))
     total_time = time.time() - start_time
 
     txt = "===== model_2 =====\n"
@@ -150,7 +115,44 @@ def model_3():
     txt += "  per task: {}\n".format(total_time / n)
 
     return txt, total_time / n    
+
+####  START OF MODEL 4 ####
+
+def threaded_executer(*args, **kwargs):
+
+    log.debug("STARTING UP PROCESS {}".format(os.getpid()))
     
+    def target_func():
+        try:
+            task = q.get_nowait()
+            log.debug("Calling First Task :: {} :: {} :: {}".format(os.getpid(), threading.currentThread().name, task))
+        except Exception as e:
+            log.debug("Exit (UNEMPLOYED) Thread Called :: Process <{}> :: Thread <{}> :: Message {}".format(os.getpid(), threading.currentThread().name, type(e)))
+            return
+        while task:
+            execute_by_name(task)
+            try:
+                task = q.get_nowait()
+            except mp.queues.Empty as e:
+                log.debug("Exit (RETIRED) Thread Called :: Process <{}> :: Thread <{}> :: Message {}".format(os.getpid(), threading.currentThread().name, type(e)))           
+                task = None                
+     
+    threads = []
+
+    for i in range(MAX_THREADS):
+        thread = threading.Thread(target=target_func, name=str(i))
+        threads.append(thread)
+        thread.setDaemon(True)
+        thread.start()
+
+    [t.join() for t in threads]
+
+    log.debug("SHUTTING DOWN PROCESS {}".format(os.getpid()))    
+        
+q = mp.Queue()
+for t in [x.__name__ for x in TASKS]:
+    q.put(t)        
+
 def model_4():
     # Multiprocessed Asyncronous
     ## N Processes w/ Async Calls
@@ -159,6 +161,7 @@ def model_4():
     
     pool = mp.Pool(MAX_PROCESSES)
 
+#    pool.map(threaded_executer, range(MAX_PROCESSES))
     pool.map(threaded_executer, range(MAX_PROCESSES))
 
     n = len(TASKS)
@@ -171,7 +174,10 @@ def model_4():
     txt += "  per task: {}\n".format(total_time / n)
 
     return txt, total_time / n    
-    
+
+
+#### END OF MODEL 4 ####
+
 def main():    
     txt1, t1 =  model_1()
     txt2, t2 =  model_2()
@@ -204,7 +210,7 @@ def test_model(model):
     assert len(set(pids)) <= MAX_PROCESSES
     assert len(set(threads)) <= MAX_THREADS
 
-    logging.info("PASSED TESTS")
+    logging.info("PASSED TESTS\n")
 
 ####### START OF QUEUE METHODS
     
@@ -300,5 +306,9 @@ if __name__ == "__main__":
 #    txt4, t4 = model_4()
 #    log.info(txt2)
 #    log.info(txt4)
+
+#    test_model(model_1)
+#    test_model(model_2)
+#    test_model(model_3)
     test_model(model_4)
 
