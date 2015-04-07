@@ -27,7 +27,7 @@ def CPU_BOUND(*args, **kwargs):
     OUTPUT.put(["CPU_BOUND", os.getpid(), threading.currentThread().name])
 
 RATIO = 4 # Ratio of IOs per CPU calls (must be int)
-CPUs = 1
+CPUs = 20
 
 _IOs = [IO_BOUND for _ in range(RATIO * CPUs)]
 TASKS = random.sample([CPU_BOUND for _ in range(CPUs)] + _IOs, CPUs + RATIO * CPUs)
@@ -41,29 +41,35 @@ def executer(name):
 
 def threaded_executer(*args, **kwargs):
 
+    log.debug("STARTING UP PROCESS {}".format(os.getpid()))
+    
     def target_func():
-        log.debug("CALLED")
         try:
             task = q.get_nowait()
-        except:
-            log.debug("EXCEPT")
+            log.debug("Calling Task :: {} :: {} :: {}".format(os.getpid(), threading.currentThread().name, task))
+        except Exception as e:
+            log.debug("Exit BEFORE Thread Called :: {} :: {} :: {}".format(os.getpid(), threading.currentThread().name, type(e)))
             return
         while task:
             executer(task)
             try:
                 task = q.get_nowait()
             except mp.queues.Empty:
-                task = None
-    
+                log.debug("Exit AFTER Thread Called :: {} :: {}".format(os.getpid(), threading.currentThread().name, q.qsize))           
+                task = None                
+     
     threads = []
 
     for i in range(MAX_THREADS):
-        log.debug("THREAD {}".format(i))
         thread = threading.Thread(target=target_func, name=str(i))
         threads.append(thread)
         thread.setDaemon(True)
         thread.start()
 
+    [t.join() for t in threads]
+
+    log.debug("SHUTTING DOWN PROCESS {}".format(os.getpid()))    
+        
 q = mp.Queue()
 for t in [x.__name__ for x in TASKS]:
     q.put(t)        
@@ -153,8 +159,10 @@ def model_4():
     
     pool = mp.Pool(MAX_PROCESSES)
 
-    n = len(pool.map(threaded_executer, [x.__name__ for x in TASKS]))
+    pool.map(threaded_executer, range(MAX_PROCESSES))
 
+    n = len(TASKS)
+    
     total_time = time.time() - start_time
 
     txt = "===== model_4 =====\n"
@@ -185,12 +193,8 @@ def test_model(model):
     
     logging.info(model()[0])
 
-    print OUTPUT
-    
     list_output = deQueue(OUTPUT)
 
-    print list_output
-    
     assert len(list_output) == len(TASKS)
     funcs = [x[0] for x in list_output]
     pids = [x[1] for x in list_output]
@@ -291,9 +295,7 @@ pass
 ####### END OF ANALYSIS RUNNER
 
 if __name__ == "__main__":
-    #main()
-    test_model(model_1)
-    test_model(model_2)
-    test_model(model_3)    
+    main()
+
     
 
