@@ -9,7 +9,7 @@ import unittest
 log = logging
 log.basicConfig(level="DEBUG")
 
-MAX_PROCESSES = 8 
+MAX_PROCESSES = 10 
 MAX_THREADS = 8
 TIMEOUT = 2
 
@@ -27,7 +27,7 @@ def CPU_BOUND(*args, **kwargs):
     OUTPUT.put(["CPU_BOUND", os.getpid(), threading.currentThread().name])
 
 RATIO = 4 # Ratio of IOs per CPU calls (must be int)
-CPUs = 20
+CPUs = 1
 
 _IOs = [IO_BOUND for _ in range(RATIO * CPUs)]
 TASKS = random.sample([CPU_BOUND for _ in range(CPUs)] + _IOs, CPUs + RATIO * CPUs)
@@ -295,7 +295,10 @@ pass
 ####### END OF ANALYSIS RUNNER
 
 if __name__ == "__main__":
-    main()
-
-    
+#    main()
+#    txt2, t2 = model_2()
+#    txt4, t4 = model_4()
+#    log.info(txt2)
+#    log.info(txt4)
+    test_model(model_4)
 
