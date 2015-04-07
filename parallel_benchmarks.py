@@ -325,6 +325,23 @@ def test_deFile():
     
 ####### END OF FILE METHODS
 
+####### START OF ANALYSIS RUNNER
+
+# GIVEN a set of production hardward (CORES, MEMORY, etc.)
+
+# Range of CPU_BOUND function calls 1 - 10000
+
+# Range of IO/CPU BOUND Ratios 1 - 100
+
+pass
+
+# Rander charts
+
+# Estimate the current CPU usage on a single wc-client.
+
+
+####### END OF ANALYSIS RUNNER
+
 if __name__ == "__main__":
     #main()
     test_model(model_2)
