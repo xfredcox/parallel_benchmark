@@ -4,22 +4,26 @@ import random
 import os
 import threading
 import Queue
+import logging
+
+log = logging
+log.basicConfig(level="DEBUG")
 
 MAX_PROCESSES = 8 
 MAX_THREADS = 8
 TIMEOUT = 2
 
 def IO(*args, **kwargs):
-    print "IO :: {} :: {}".format(os.getpid(), threading.currentThread().name)
+    log.debug("IO :: {} :: {}".format(os.getpid(), threading.currentThread().name))
     time.sleep(random.random() * TIMEOUT)
 
 def CPU(*args, **kwargs):
-    print "CPU :: {} :: {}".format(os.getpid(), threading.currentThread().name)
+    log.debug("CPU :: {} :: {}".format(os.getpid(), threading.currentThread().name))
     _ = [x**x for x in range(5500)]
     # Takes about 1s for me
 
 RATIO = 4 # Ratio of IOs per CPU calls (must be int)
-CPUs = 20
+CPUs = 1
 
 _IOs = [IO for _ in range(RATIO * CPUs)]
 TASKS = random.sample([CPU for _ in range(CPUs)] + _IOs, CPUs + RATIO * CPUs)
@@ -60,7 +64,7 @@ def model_1():
     # Sequential Benchmark
     ## Single Process w/ Synchronous Calls
 
-    print "===== Running Model I ====="
+    log.debug("===== Running Model I =====")
     start_time = time.time()
     n = len([x() for x in TASKS])
     total_time = time.time() - start_time
@@ -76,7 +80,7 @@ def model_2():
     # Multiprocessed Benchmark
     ## N Processes w/ Synchronous Calls
 
-    print "===== Running Model II ====="    
+    log.debug("===== Running Model II =====")
     start_time = time.time()
     pool = mp.Pool(MAX_PROCESSES)
     n = len(pool.map(executer, [x.__name__ for x in TASKS]))
@@ -93,7 +97,7 @@ def model_3():
     # Asyncronous Benchmark
     ## Single Process w/ Async Calls
 
-    print "===== Running Model III ====="                
+    log.debug("===== Running Model III =====")
     start_time = time.time()
     
     q = Queue.Queue()
@@ -130,7 +134,7 @@ def model_3():
 def model_4():
     # Multiprocessed Asyncronous
     ## N Processes w/ Async Calls
-    print "===== Running Model IV ====="    
+    log.debug("===== Running Model IV =====")
     start_time = time.time()
     
     pool = mp.Pool(MAX_PROCESSES)
@@ -152,13 +156,12 @@ def main():
     txt3, t3 =  model_3()
     txt4, t4 =  model_4()    
 
-    print txt1
-    print txt2
-    print txt3
-    print txt4    
+    log.info(txt1)
+    log.info(txt2)
+    log.info(txt3)
+    log.info(txt4) 
 
-    print
-    print "1 : {} : {} : {}".format(round(t2/t1, 4), round(t3/t1, 4), round(t4/t1, 4))
+    log.info("\n1 : {} : {} : {}".format(round(t2/t1, 4), round(t3/t1, 4), round(t4/t1, 4)))
     
     return
 
