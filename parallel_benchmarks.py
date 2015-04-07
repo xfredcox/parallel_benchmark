@@ -5,6 +5,7 @@ import os
 import threading
 import Queue
 import logging
+import unittest
 
 log = logging
 log.basicConfig(level="DEBUG")
@@ -13,33 +14,40 @@ MAX_PROCESSES = 8
 MAX_THREADS = 8
 TIMEOUT = 2
 
-def IO(*args, **kwargs):
+def IO_BOUND(*args, **kwargs):
     log.debug("IO :: {} :: {}".format(os.getpid(), threading.currentThread().name))
     time.sleep(random.random() * TIMEOUT)
+    global OUTPUT    
+    OUTPUT.put(["IO_BOUND", os.getpid(), threading.currentThread().name])    
 
-def CPU(*args, **kwargs):
+def CPU_BOUND(*args, **kwargs):
     log.debug("CPU :: {} :: {}".format(os.getpid(), threading.currentThread().name))
     _ = [x**x for x in range(5500)]
     # Takes about 1s for me
+    global OUTPUT
+    OUTPUT.put(["CPU_BOUND", os.getpid(), threading.currentThread().name])
 
 RATIO = 4 # Ratio of IOs per CPU calls (must be int)
 CPUs = 1
 
-_IOs = [IO for _ in range(RATIO * CPUs)]
-TASKS = random.sample([CPU for _ in range(CPUs)] + _IOs, CPUs + RATIO * CPUs)
+_IOs = [IO_BOUND for _ in range(RATIO * CPUs)]
+TASKS = random.sample([CPU_BOUND for _ in range(CPUs)] + _IOs, CPUs + RATIO * CPUs)
+OUTPUT = Queue.Queue() # Empty container to run tests that the functions actually got called.
 
 def executer(name):
-    if name == 'CPU':
-        return CPU()
-    elif name == 'IO':
-        return IO()
+    if name == 'CPU_BOUND':
+        return CPU_BOUND()
+    elif name == 'IO_BOUND':
+        return IO_BOUND()
 
 def threaded_executer(*args, **kwargs):
 
     def target_func():
+        log.debug("CALLED")
         try:
             task = q.get_nowait()
         except:
+            log.debug("EXCEPT")
             return
         while task:
             executer(task)
@@ -51,6 +59,7 @@ def threaded_executer(*args, **kwargs):
     threads = []
 
     for i in range(MAX_THREADS):
+        log.debug("THREAD {}".format(i))
         thread = threading.Thread(target=target_func, name=str(i))
         threads.append(thread)
         thread.setDaemon(True)
@@ -105,7 +114,10 @@ def model_3():
         q.put(t)
 
     def target_func():
-        task = q.get()
+        try:
+            task = q.get_nowait()
+        except:
+            return 
         while task:
             task()
             try:
@@ -122,6 +134,9 @@ def model_3():
         thread.start()
 
     n = len(TASKS)
+
+    [t.join() for t in threads]
+    
     total_time = time.time() - start_time
 
     txt = "===== model_3 =====\n"
@@ -165,6 +180,153 @@ def main():
     
     return
 
+def test_model(model):
+    global OUTPUT
+    clearQueue(OUTPUT)
+    
+    logging.info(model()[0])
+
+    print OUTPUT
+    
+    list_output = deQueue(OUTPUT)
+
+    print list_output
+    
+    assert len(list_output) == len(TASKS)
+    funcs = [x[0] for x in list_output]
+    pids = [x[1] for x in list_output]
+    threads = [x[2] for x in list_output]    
+
+    assert sorted(funcs) == sorted([x.__name__ for x in TASKS])
+    assert len(set(pids)) <= MAX_PROCESSES
+    assert len(set(threads)) <= MAX_THREADS
+
+    logging.info("PASSED TESTS")
+
+####### START OF QUEUE METHODS
+    
+def test_deQueue():
+    q = Queue.Queue()
+    q.put(1)
+    q.put(2)
+    q.put(3)
+
+    l = deQueue(q)
+
+    assert l == [1,2,3]
+
+    logging.info("test_deQueue Passed")
+
+def test_clearQueue():
+    q = Queue.Queue()
+    q.put(1)
+    q.put(2)
+    q.put(3)
+
+    # By assignment
+    q = clearQueue(q)
+    assert q.qsize() == 0
+
+    q = Queue.Queue()
+    q.put(1)
+    q.put(2)
+    q.put(3)
+
+    # In place
+    clearQueue(q)
+    assert q.qsize() == 0    
+
+    logging.info("test_clearQueue Passed")    
+    
+def deQueue(q):
+    output = []
+    while True:
+        try:
+            el = q.get_nowait()
+            output.append(el)
+        except Queue.Empty:
+            return output
+
+def clearQueue(q):
+    while True:
+        try:
+            el = q.get_nowait()
+        except Queue.Empty:
+            return q
+
+####### END OF QUEUE METHODS
+
+####### START OF FILE METHODS
+
+FILE_NAME = 'test_exec.txt'
+
+def clear_file():
+    with open(FILE_NAME, 'w') as f:
+        f.write('')
+
+def write_line(txt):
+    with open(FILE_NAME, 'r+') as f:
+        f.write(txt)
+
+def deFile():
+    with open(FILE_NAME, 'r') as f:
+        return f.read().split("\n")
+
+def test_clear_file():
+    f = open(FILE_NAME, 'w')
+    f.write('TEST')
+    f.close()
+
+    clear_file()
+
+    f = open(FILE_NAME, 'r')
+    txt = f.read()
+
+    assert txt == ''
+
+    logging.info("test_clear_file Passed")        
+
+def test_write_line():
+    clear_file()
+
+    write_line('WRITE TEST')
+    
+    f = open(FILE_NAME, 'r')
+    txt = f.read()
+
+    assert txt == 'WRITE TEST'
+
+    clear_file()
+
+    write_line('TEST')
+    write_line('WRITE\n')
+    
+    f = open(FILE_NAME, 'r')
+    txt = f.read()
+
+    print txt
+    assert txt == 'WRITE\nTEST'    
+
+    logging.info("test_write_line Passed")
+
+def test_deFile():
+    clear_file()
+
+    write_line('3\n')
+    write_line('2\n')
+    write_line('1\n')        
+    
+    l = deFile()
+
+    print l
+    assert l == [1,2,3]
+
+    logging.info("test_deFile Passed")            
+    
+####### END OF FILE METHODS
+
 if __name__ == "__main__":
-    main()
+    #main()
+    test_model(model_2)
+
 
